@@ -63,6 +63,60 @@ async function run(options: RunOptions = {}) {
   await cleanupLogFiles();
   const config = await initConfig();
 
+  // OAuth Auto-Configuration for Gemini Providers
+  // Detect if any Gemini providers have OAuth enabled
+  const hasOAuthGemini = config.Providers?.some(
+    (p: any) => p.useOAuthToken === true &&
+               p.api_base_url?.includes('generativelanguage.googleapis.com')
+  );
+
+  if (hasOAuthGemini) {
+    // Ensure transformers array exists
+    if (!config.transformers) {
+      config.transformers = [];
+    }
+
+    // Register OAuth transformer plugin
+    const oauthTransformerPath = join(HOME_DIR, 'plugins', 'gemini-oauth-headers.js');
+    const hasOAuthTransformer = config.transformers.some(
+      (t: any) => t.path === oauthTransformerPath || t === oauthTransformerPath
+    );
+
+    if (!hasOAuthTransformer) {
+      config.transformers.push({
+        path: oauthTransformerPath,
+        options: {}
+      });
+      console.log('✓ Auto-registered Gemini OAuth transformer');
+    }
+
+    // Auto-configure providers with useOAuthToken flag
+    config.Providers.forEach((provider: any) => {
+      if (provider.useOAuthToken === true) {
+        // Initialize transformer config if needed
+        if (!provider.transformer) {
+          provider.transformer = { use: ['gemini', 'gemini-oauth-headers'] };
+          console.log(`✓ Auto-configured OAuth for provider: ${provider.name}`);
+        } else {
+          // Add OAuth transformer to existing chain
+          if (!provider.transformer.use) {
+            provider.transformer.use = [];
+          }
+
+          // Ensure base gemini transformer is present
+          if (!provider.transformer.use.includes('gemini')) {
+            provider.transformer.use.unshift('gemini');
+          }
+
+          // Add OAuth transformer at end (runs last)
+          if (!provider.transformer.use.includes('gemini-oauth-headers')) {
+            provider.transformer.use.push('gemini-oauth-headers');
+            console.log(`✓ Added OAuth transformer to provider: ${provider.name}`);
+          }
+        }
+      }
+    });
+  }
 
   let HOST = config.HOST || "127.0.0.1";
 
