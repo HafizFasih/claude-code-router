@@ -6,7 +6,9 @@
       "Bash(cat:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:gist.github.com)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm login)"
     ]
   }
 }
